@@ -1,0 +1,8 @@
+{
+	"numbers-quantity": 2,
+	"numbers-range": {
+		"min":5,
+		"max": 40
+	},
+	"prize-pool": 100000
+}
