@@ -6,11 +6,11 @@ from psycopg2.extras import RealDictCursor
 
 
 def sql_execute(sql):
-    '''Function responsible for connecting to database.
+    '''Function responsible for connecting to database and executing given SQL command.
         Args:
               sql(str) - SQL command.
         Returns:
-              If the searched value exists returns tuple with dictionaries containing founded values,
+              If the searched value exists function returns tuple with dictionaries containing founded values,
               otherwise returns None.
     '''
     cnx = connect(
@@ -44,6 +44,9 @@ def add_ticket():
     if not player:
         player = sql_execute('''INSERT INTO players(first_name, last_name) 
                                 VALUES('{}', '{}') RETURNING *;'''.format(first_name, last_name))
+        print('Welcome to the Lottery. Select {} numbers from {} to {}. '
+              'If all the numbers chosen by you will match the numbers drawn in the lottery, '
+              'you can win up to {}'. format(numbers_quantity, min_allowed, max_allowed, prize_pool))
     else:
         print('Welcome back {} {}!!!'.format(player[0]['first_name'], player[0]['last_name']))
         saved_numbers = sql_execute('''SELECT numbers FROM tickets WHERE player_id={}'''.format(player[0]['player_id']))
@@ -53,13 +56,13 @@ def add_ticket():
                 print(number['numbers'])
     player_numbers = []
     while len(player_numbers) < numbers_quantity:
-        try:  # checks if player passed an integer.
+        try:  # checks if type of passed argument is an integer.
             chosen_number = int(input('Add your {} number:'.format(len(player_numbers) + 1)))
         except ValueError:
             print('Please select a number between {} - {}'.format(min_allowed, max_allowed))
             continue
         if chosen_number < min_allowed or chosen_number > max_allowed:  # checks if passed number is in correct range.
-            print('Numer should be between {} - {}'.format(min_allowed, max_allowed))
+            print('Please select a number between {} - {}'.format(min_allowed, max_allowed))
         else:
             player_numbers.append(chosen_number)
     player_numbers.sort()
@@ -75,8 +78,7 @@ def lottery_result():
     '''
     draw_result = [randrange(min_allowed, max_allowed + 1) for _ in range(numbers_quantity)]
     draw_result.sort()
-    draw_result = str(draw_result).replace('[', '{').replace(']', '}')
-    winning_tickets = sql_execute('''SELECT * FROM tickets WHERE numbers = '{}';'''.format(draw_result))
+    winning_tickets = sql_execute('''SELECT * FROM tickets WHERE numbers=ARRAY{}::smallint[];'''.format(draw_result))
     if winning_tickets:
         price = prize_pool / len(winning_tickets)
         for ticket in winning_tickets:
@@ -92,16 +94,17 @@ def check_file():
     '''
     while True:
         path = input('Enter path to file: ')
-        if os.path.isfile(path):
+        if os.path.isfile(path):  # checks if given path leads to file.
             with open(path) as file:
-                try:
+                try:  # checks if file content is in JSON format.
                     file_content = json.load(file)
+                    print('File loaded successfully.')
                     return file_content
                 except json.JSONDecodeError:
-                    print('File has wrong format - it should be JSON')
+                    print('Content of the file should be in JSON format. Please try again.')
                     continue
         else:
-            print('File does not exists')
+            print('File does not exists. Please try again.')
             continue
 
 
@@ -110,8 +113,3 @@ numbers_quantity = int(json_data['numbers-quantity'])
 prize_pool = int(json_data['prize-pool'])
 min_allowed = int(json_data['numbers-range']['min'])
 max_allowed = int(json_data['numbers-range']['max'])
-
-# if __name__ == '__main__':
-#
-#     add_ticket()
-#     lottery_result()
